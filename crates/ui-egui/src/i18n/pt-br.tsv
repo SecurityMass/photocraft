@@ -4451,6 +4451,9 @@ smartSvg	AI/PDF/EPS contents will be edited as SVG. Saving replaces the embedded
 	Discard Drawing	Descartar desenho
 	Keep Drawing	Manter desenho
 	PNG exported.	PNG exportado.
+	What goes in the PNG?	O que vai no PNG?
+	Drawing and Image	Desenho e imagem
+	Drawing Only	Só o desenho
 	Drawing	Desenho
 	Quit Without Exporting	Sair sem exportar
 	The drawing on “{name}” has not been exported. Opening the new image discards it.	O desenho em “{name}” ainda não foi exportado. Abrir a nova imagem vai descartá-lo.

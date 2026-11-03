@@ -22,8 +22,8 @@ const LINE_STRAY: f64 = 0.04;
 /// A closed shape's ends may be this far apart, as a fraction of the stroke's length.
 const CLOSING_GAP: f64 = 0.18;
 /// How far a stroke may be from a closed shape on average and at worst, as fractions of its size.
-const MEAN_FIT: f64 = 0.03;
-const WORST_FIT: f64 = 0.09;
+const MEAN_FIT: f64 = 0.045;
+const WORST_FIT: f64 = 0.12;
 /// Stroke length over shape perimeter: outside this it was drawn twice over, or is something else.
 const LENGTH_RATIO: std::ops::RangeInclusive<f64> = 0.75..=1.3;
 /// Radii this close make a circle.

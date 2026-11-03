@@ -28,6 +28,8 @@ pub struct SimpleState {
     /// The drawing layer of each document seen.
     drawing: std::collections::HashMap<DocId, LayerId>,
     hold: HoldTimer,
+    /// Export was asked for: the question of what goes in the PNG is on screen.
+    asking_export: bool,
 }
 
 /// Turn the mode on, before any file opens.
@@ -95,7 +97,7 @@ fn allowed_key(key: Key, m: Modifiers) -> bool {
 /// Take out of this frame's input every key that would reach something hidden. A text field being
 /// typed in, or a question being answered, keeps its keys.
 pub fn filter_input(app: &PhotocraftApp, ctx: &egui::Context, raw: &mut egui::RawInput) {
-    if !app.simple_mode || ctx.text_edit_focused() || app.discard.is_some() || !app.ui.dialogs.is_empty() || replacing(app).is_some() {
+    if !app.simple_mode || ctx.text_edit_focused() || app.discard.is_some() || !app.ui.dialogs.is_empty() || replacing(app).is_some() || app.simple.asking_export {
         return;
     }
     raw.events.retain_mut(|e| match e {
@@ -214,21 +216,82 @@ fn correct_stroke(app: &mut PhotocraftApp) {
     }
 }
 
-/// Export the image with its drawing, asking where.
+/// Export: ask what goes in the PNG, then where.
 pub fn export_png(app: &mut PhotocraftApp) -> Result<Value, String> {
+    app.session.active().ok_or("no document")?;
+    app.simple.asking_export = true;
+    Ok(Value::Null)
+}
+
+fn export_question(app: &mut PhotocraftApp, ctx: &egui::Context) {
+    if !app.simple.asking_export {
+        return;
+    }
+    let mut answer = None;
+    let modal = egui::Modal::new(egui::Id::unique("simple-export")).show(ctx, |ui| {
+        ui.set_max_width(420.0);
+        ui.label(tl!("What goes in the PNG?"));
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if ui.button(tl!("Drawing and Image")).clicked() {
+                answer = Some(Some(false));
+            }
+            if ui.button(tl!("Drawing Only")).clicked() {
+                answer = Some(Some(true));
+            }
+            if ui.button(tl!("Cancel")).clicked() {
+                answer = Some(None);
+            }
+        });
+    });
+    if modal.should_close() {
+        answer = answer.or(Some(None));
+    }
+    let Some(answer) = answer else { return };
+    app.simple.asking_export = false;
+    if let Some(drawing_only) = answer
+        && let Err(e) = pick_export_path(app, drawing_only)
+    {
+        log::warn!("{e}");
+    }
+}
+
+fn pick_export_path(app: &mut PhotocraftApp, drawing_only: bool) -> Result<Value, String> {
     let st = app.session.active().ok_or("no document")?;
     let stem = st.doc.name.rsplit_once('.').map_or(st.doc.name.as_str(), |(a, _)| a);
     let (suggested, doc) = (format!("{stem}.png"), st.doc.id);
     app.pick_save(&suggested, move |app, path| {
         app.refocus(doc)?;
-        export_to(app, std::path::Path::new(&path).with_extension("png").to_string_lossy().as_ref());
+        export_to(app, std::path::Path::new(&path).with_extension("png").to_string_lossy().as_ref(), drawing_only);
         Ok(Value::Null)
     })
 }
 
-/// Write the PNG. A failure says so and changes nothing.
-pub fn export_to(app: &mut PhotocraftApp, path: &str) {
-    match app.run("file.export.quickExport", json!({"path": path})) {
+/// The document with everything but the drawing layer hidden (groups stay, as one may hold it).
+fn drawing_only_doc(app: &PhotocraftApp) -> Option<std::sync::Arc<photocraft_doc::Document>> {
+    let st = app.session.active()?;
+    let drawing = app.simple.drawing.get(&st.doc.id).copied();
+    let others: Vec<LayerId> = st.doc.walk().into_iter().map(|(_, _, l)| l).filter(|l| !l.is_group() && Some(l.id) != drawing).map(|l| l.id).collect();
+    let mut doc = (*st.doc).clone();
+    for id in others {
+        if let Some(l) = doc.layer_mut(id) {
+            l.visible = false;
+        }
+    }
+    Some(std::sync::Arc::new(doc))
+}
+
+/// Write the PNG: with the image under the drawing, or the drawing alone on transparency. A failure
+/// says so and changes nothing.
+pub fn export_to(app: &mut PhotocraftApp, path: &str, drawing_only: bool) {
+    // The stand-in lasts only for the export: no undo step, nothing redrawn.
+    let stand_in = drawing_only.then(|| drawing_only_doc(app)).flatten();
+    let original = stand_in.and_then(|doc| app.session.active_mut().map(|st| std::mem::replace(&mut st.doc, doc)));
+    let result = app.run("file.export.quickExport", json!({"path": path}));
+    if let (Some(doc), Some(st)) = (original, app.session.active_mut()) {
+        st.doc = doc;
+    }
+    match result {
         Ok(_) => {
             if let Some(st) = app.session.active_mut() {
                 st.saved_revision = st.revision;
@@ -382,6 +445,7 @@ pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
         }
     });
     replace_question(app, &ctx);
+    export_question(app, &ctx);
     tick_hold(app, ctx.input(|i| i.time) * 1000.0);
     // A held pointer sends no events: keep frames coming to see the hold end.
     if app.drag.is_some() {

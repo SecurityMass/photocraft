@@ -121,7 +121,7 @@ fn the_export_has_the_original_size_and_keeps_the_pixels_without_drawing() {
     pen(&mut app, &line);
     release(&mut app, *line.last().unwrap());
     let out = dir.path().join("out.png").to_string_lossy().into_owned();
-    export_to(&mut app, &out);
+    export_to(&mut app, &out, false);
     assert!(!app.session.active().unwrap().is_dirty(), "exported: nothing to lose");
     let (_, original) = picture(&dir);
     let decode = |name: &str, bytes: &[u8]| photocraft_io::import_with_options(name, bytes, &Default::default()).unwrap().document;
@@ -141,6 +141,27 @@ fn the_export_has_the_original_size_and_keeps_the_pixels_without_drawing() {
 }
 
 #[test]
+fn the_drawing_alone_exports_on_transparency_and_the_image_stays_visible() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = opened(&dir);
+    let line = wobbly_line();
+    pen(&mut app, &line);
+    release(&mut app, *line.last().unwrap());
+    let steps = undo_steps(&app);
+    let out = dir.path().join("only.png").to_string_lossy().into_owned();
+    export_to(&mut app, &out, true);
+    assert!(!app.session.active().unwrap().is_dirty(), "exported: nothing to lose");
+    assert_eq!(undo_steps(&app), steps, "not an undo step");
+    assert!(app.session.active().unwrap().doc.walk().iter().all(|(_, _, l)| l.visible), "the image shows again");
+    let doc = photocraft_io::import_with_options("only.png", &std::fs::read(&out).unwrap(), &Default::default()).unwrap().document;
+    assert_eq!((doc.size.width, doc.size.height), (200, 100));
+    let px = photocraft_compose::flatten(&doc);
+    assert_eq!(px.get(100, 5)[3], 0.0, "the image's own stroke is not in the file");
+    assert_eq!(px.get(5, 90)[3], 0.0, "nor its white");
+    assert!(px.get(100, 50)[3] > 0.9, "the drawing is");
+}
+
+#[test]
 fn a_failed_export_says_so_in_portuguese_and_keeps_the_drawing() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = opened(&dir);
@@ -151,7 +172,7 @@ fn a_failed_export_says_so_in_portuguese_and_keeps_the_drawing() {
     // A folder where the file should go: nothing can write there.
     let taken = dir.path().join("taken.png");
     std::fs::create_dir(&taken).unwrap();
-    export_to(&mut app, &taken.to_string_lossy());
+    export_to(&mut app, &taken.to_string_lossy(), false);
     assert!(app.ui.status_error && app.ui.status.contains("Não foi possível"), "{}", app.ui.status);
     assert!(app.session.active().unwrap().is_dirty());
 }
@@ -410,7 +431,46 @@ fn the_interface_opens_in_portuguese_and_every_visible_string_has_a_translation(
         "PNG exported.",
         "Drawing",
         "Quit Without Exporting",
+        "What goes in the PNG?",
+        "Drawing and Image",
+        "Drawing Only",
     ] {
         assert_ne!(i18n::tr(lang, s), s, "{s}");
     }
+}
+
+/// The real path: pointer events through the canvas, frames arriving with no event during the hold.
+fn hold_after_drawing(points: &[(f32, f32)]) -> usize {
+    let dir = tempfile::tempdir().unwrap();
+    let app = opened(&dir);
+    let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+        |ui, app: &mut PhotocraftApp| {
+            if ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
+                tick(app);
+                body(app, ui);
+            }
+        },
+        app,
+    );
+    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    h.run_steps(4);
+    let c = h.state().last_canvas_rect.center();
+    let at = |p: (f32, f32)| c + egui::vec2(p.0, p.1);
+    h.event(Event::PointerMoved(at(points[0])));
+    h.run_steps(1);
+    h.event(Event::PointerButton { pos: at(points[0]), button: egui::PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    h.run_steps(1);
+    for p in &points[1..] {
+        h.event(Event::PointerMoved(at(*p)));
+        h.run_steps(1);
+    }
+    assert!(h.state().drag.is_some(), "drawing");
+    h.run_steps(60);
+    undo_steps(h.state())
+}
+
+#[test]
+fn a_held_circle_is_corrected_through_the_real_canvas() {
+    let circle: Vec<(f32, f32)> = (0..=60).map(|i| (i as f32 / 60.0 * std::f32::consts::TAU).sin_cos()).map(|(s, c)| (70.0 * c, 70.0 * s)).collect();
+    assert_eq!(hold_after_drawing(&circle), 2, "the stroke, then the shape");
 }
