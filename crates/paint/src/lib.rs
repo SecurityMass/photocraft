@@ -30,6 +30,7 @@ pub mod render;
 pub mod replace;
 pub mod retouch;
 pub mod rng;
+pub mod shape_fix;
 pub mod symmetry;
 pub mod tile;
 

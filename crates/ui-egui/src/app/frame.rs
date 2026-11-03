@@ -43,6 +43,7 @@ impl PhotocraftApp {
         }
         self.last_frame_time = now;
         self.sync_views();
+        crate::simple_mode::tick(self);
         crate::type_font_preview::follow_hover(self, ctx);
         self.check_gpu(ctx);
         #[cfg(all(debug_assertions, not(target_arch = "wasm32")))]
@@ -270,7 +271,19 @@ impl PhotocraftApp {
         // The OS title bar (and the taskbar / Alt-Tab entry) follows the active file; with the
         // system title bar this is where the document name lives, as the in-app title is hidden.
         panels::sync_window_title(self, &ctx);
+        // The drawing app has one bar and the canvas; hides_chrome can't be reached from it.
         let chrome = !self.ui.view.hides_chrome();
+        if self.simple_mode {
+            crate::simple_mode::body(self, ui);
+        } else {
+            self.editor_chrome(ui, chrome);
+        }
+        self.after_chrome(ui, chrome)
+    }
+
+    /// The whole editor's bars, panels and canvas.
+    fn editor_chrome(&mut self, ui: &mut egui::Ui, chrome: bool) {
+        let ctx = ui.ctx().clone();
         if chrome {
             self.ui.panels.full_screen_chrome = false;
         }
@@ -300,6 +313,11 @@ impl PhotocraftApp {
             });
             panels::properties_window(self, &ctx);
         }
+    }
+
+    /// Everything that floats over the frame, whichever interface drew it.
+    fn after_chrome(&mut self, ui: &mut egui::Ui, chrome: bool) -> bool {
+        let ctx = ui.ctx().clone();
         brush_panel::window(self, &ctx);
         preset_panels::windows(self, &ctx);
         gradient_ui::editor_window(self, &ctx);

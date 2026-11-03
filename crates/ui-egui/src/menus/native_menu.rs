@@ -28,7 +28,6 @@ use crate::PhotocraftApp;
 use crate::i18n::{Lang, tr, tr_id};
 use crate::menus::MenuItem;
 
-pub const APP_NAME: &str = "PhotoCraft";
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MenuBar {
@@ -388,7 +387,7 @@ pub fn mac_layout(bar: &MenuBar, lang: Lang) -> Layout {
     let mut clashes = Vec::new();
     let bound: HashMap<String, String> = bar.items().iter().filter_map(|it| Some((Chord::parse(it.shortcut.as_deref()?)?.portable(), it.id.clone()))).collect();
     let taken = |sc: &str, own: Option<&str>| bound.get(sc).filter(|cmd| Some(cmd.as_str()) != own).cloned();
-    let named = |s: &str| crate::i18n::fmt(tr(lang, s), &[("app", APP_NAME)]);
+    let named = |s: &str| crate::i18n::fmt(tr(lang, s), &[("app", crate::app_name::app_name())]);
 
     let about = take(&mut bar, |n| matches!(n, Node::Item(it) if it.role == Some(ItemRole::About)));
     let settings = take(&mut bar, |n| match n {
@@ -443,7 +442,7 @@ pub fn mac_layout(bar: &MenuBar, lang: Lang) -> Layout {
         }
         menu.push(Node::Item(quit));
     }
-    bar.menus.insert(0, Menu { title: APP_NAME.into(), role: MenuRole::App, children: menu });
+    bar.menus.insert(0, Menu { title: crate::app_name::app_name().into(), role: MenuRole::App, children: menu });
 
     match taken("Cmd+W", None) {
         Some(command) => clashes.push(Clash { shortcut: "Cmd+W", system: "Close Window", command, resolution: "no system Close Window item" }),
@@ -623,6 +622,28 @@ pub fn photocraft_layout(items: &[MenuItem], lang: Lang, language: &str) -> Layo
     layout
 }
 
+/// The drawing app's menus: the commands it has, in a Mac app's layout, and nothing else.
+pub fn simple_layout(items: &[MenuItem], lang: Lang) -> MenuBar {
+    let rows: Vec<MenuItem> = items.iter().filter(|it| crate::simple_mode::menu_command(&it.id)).cloned().collect();
+    let mut bar = from_items(&crate::menus::TOP_MENUS, &rows);
+    bar.tag_item("file.exit", ItemRole::Quit);
+    bar.tag_menu("Window", MenuRole::Window);
+    let mut layout = mac_layout(&bar, lang);
+    translate(&mut layout.bar, lang);
+    layout.bar.menus.retain(|m| !m.children.is_empty());
+    for menu in &mut layout.bar.menus {
+        menu.children.retain(|n| !is_document(n));
+        for node in &mut menu.children {
+            if let Node::Item(it) = node
+                && it.id == "file.export.quickExportAsPng"
+            {
+                it.label = tr(lang, "Export PNG…").to_string();
+            }
+        }
+    }
+    layout.bar
+}
+
 // ----------------------------------------------------------------------------- the app's side
 
 /// What the native menu reports.
@@ -696,6 +717,9 @@ pub fn run(app: &mut PhotocraftApp, ctx: &egui::Context) {
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
             continue;
         }
+        if app.simple_mode && !crate::simple_mode::menu_command(&id) && id != HIDE {
+            continue;
+        }
         // The rows are disabled while a dialog is open; a click that raced the update is dropped.
         if !crate::menus::modal_allows(app, &id) {
             continue;
@@ -720,6 +744,14 @@ pub fn sync(app: &mut PhotocraftApp, ctx: &egui::Context) {
     let mut items = crate::menus::menu_items(app);
     for it in &mut items {
         it.enabled &= crate::menus::modal_allows(app, &it.id);
+    }
+    if app.simple_mode {
+        let bar = simple_layout(&items, lang);
+        let Some(menu) = app.services.native_menu.as_mut() else { return };
+        menu.backend.sync(&bar);
+        menu.state = Some(state);
+        menu.dirty = false;
+        return;
     }
     let layout = photocraft_layout(&items, lang, &app.session.prefs().interface.language);
     let Some(menu) = app.services.native_menu.as_mut() else { return };

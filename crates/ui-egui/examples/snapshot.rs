@@ -42,6 +42,7 @@ fn main() {
     let scale: f32 = arg(&args, "--scale").and_then(|s| s.parse().ok()).unwrap_or(2.0);
     let wayland_notice = args.iter().any(|a| a == "--wayland-notice");
     let update_notice = args.iter().any(|a| a == "--update-notice");
+    let full_ui = args.iter().any(|a| a == "--full-ui");
     let script: Vec<(String, Value)> =
         arg(&args, "--script").map(|s| serde_json::from_str::<Vec<(String, Value)>>(&s).expect("--script must be [[method, params], …]")).unwrap_or_default();
 
@@ -87,6 +88,10 @@ fn main() {
             services.is_wayland = wayland_notice;
             services.xwayland_command = wayland_notice.then(|| "WAYLAND_DISPLAY= photocraft".into());
             let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+            // The drawing app, as the desktop app starts it; `--full-ui` shows the whole editor.
+            if !full_ui {
+                photocraft_ui_egui::simple_mode::enable(&mut app);
+            }
             if update_notice {
                 app.session.updates.status = photocraft_engine::updates_cmds::Status::Available {
                     release: photocraft_engine::updates_cmds::Release {

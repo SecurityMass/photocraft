@@ -1,0 +1,87 @@
+name: Build teste (macOS)
+
+# Builds the universal, ad-hoc signed DMG and publishes it as a short-lived artifact. No GitHub
+# Release, no Apple account: the first launch is authorized by hand (docs/user/instalar-no-mac.md).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-teste-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dmg:
+    runs-on: macos-14
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust targets
+        run: |
+          rustup update stable
+          rustup default stable
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: teste-macos-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            teste-macos-${{ hashFiles('Cargo.lock') }}-
+            teste-macos-
+
+      - name: Shape recognizer tests
+        run: cargo test --locked -p photocraft-paint --lib shape_fix
+
+      - name: Package (ad-hoc signature)
+        run: bash packaging/macos/package.sh --arch universal
+
+      - name: The binary holds both architectures
+        run: |
+          BIN=target/macos-package/teste.app/Contents/MacOS/teste
+          lipo -info "$BIN" | tee lipo.txt
+          grep -q x86_64 lipo.txt
+          grep -q arm64 lipo.txt
+
+      - name: Personalize a copy with a synthetic name and image
+        run: |
+          set -euo pipefail
+          WORK="$(mktemp -d)"
+          ditto target/macos-package/teste.app "$WORK/teste.app"
+          # A wide picture, so the crop has something to do.
+          sips -c 300 600 -s format jpeg assets/app-icon/photocraft-1024.png --out "$WORK/sintetica.jpg"
+          BEFORE="$(shasum "$WORK/teste.app/Contents/Resources/teste.icns")"
+          bash packaging/macos/personalize.sh "Nome Sintetico" "$WORK/sintetica.jpg" "$WORK/teste.app"
+          APP="$WORK/Nome Sintetico.app"
+          test ! -e "$WORK/teste.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          PLIST="$APP/Contents/Info.plist"
+          test "$(plutil -extract CFBundleName raw -o - "$PLIST")" = "Nome Sintetico"
+          test "$(plutil -extract CFBundleDisplayName raw -o - "$PLIST")" = "Nome Sintetico"
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$PLIST")" = "io.github.securitymass.nome-sintetico"
+          test "$(shasum "$APP/Contents/Resources/teste.icns")" != "$BEFORE"
+          grep -q '<string>Nome Sintetico</string>' "$PLIST"
+          sips -g pixelWidth -g pixelHeight "$APP/Contents/Resources/teste.icns"
+          plutil -p "$PLIST" | grep -E 'CFBundle(Name|DisplayName|Identifier|Executable|IconFile)'
+
+      - name: Collect the artifact
+        run: |
+          mkdir out
+          cp dist/release/teste-*-macos-universal.dmg packaging/macos/personalize.sh docs/user/instalar-no-mac.md out/
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: teste-macos-universal
+          path: out/*
+          retention-days: 7
+          if-no-files-found: error

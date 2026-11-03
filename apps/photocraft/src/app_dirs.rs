@@ -95,7 +95,7 @@ pub fn resolve_recovery(data: &DataDir, env: impl Fn(&str) -> Option<OsString>) 
     if data.mode == Mode::Platform {
         if cfg!(windows) {
             if let Some(local) = env("LOCALAPPDATA").filter(|l| !l.is_empty()) {
-                return Some(PathBuf::from(local).join("Photocraft").join(RECOVERY));
+                return Some(PathBuf::from(local).join("teste").join(RECOVERY));
             }
         } else if !cfg!(target_os = "macos") {
             let state = env("XDG_STATE_HOME")
@@ -478,10 +478,10 @@ pub fn resolve(env: impl Fn(&str) -> Option<OsString>, exe_dir: Option<&Path>) -
 pub fn platform_dir(env: &impl Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
     let home = env("HOME").filter(|h| !h.is_empty()).map(PathBuf::from);
     if cfg!(target_os = "macos") {
-        return home.map(|h| h.join("Library/Application Support/Photocraft"));
+        return home.map(|h| h.join("Library/Application Support/teste"));
     }
     if cfg!(windows) {
-        return env("APPDATA").filter(|a| !a.is_empty()).map(|a| PathBuf::from(a).join("Photocraft"));
+        return env("APPDATA").filter(|a| !a.is_empty()).map(|a| PathBuf::from(a).join("teste"));
     }
     env("XDG_CONFIG_HOME").filter(|x| !x.is_empty()).map(PathBuf::from).or_else(|| home.map(|h| h.join(".config"))).map(|c| c.join("photocraft"))
 }

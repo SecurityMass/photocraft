@@ -1131,6 +1131,9 @@ fn confirm_layers(app: &mut PhotocraftApp, f: &Map<String, Value>, ids: &[photoc
 /// from File › Export › Export Preferences (engine `file.export.quickExport`). On the web (no
 /// file system) it falls back to a PNG download through the export service.
 pub fn quick_export_png(app: &mut PhotocraftApp) -> Result<Value, String> {
+    if app.simple_mode {
+        return crate::simple_mode::export_png(app);
+    }
     if !cfg!(target_arch = "wasm32") {
         let prefs = app.session.prefs().export.clone();
         let fmt = serde_json::to_value(prefs.quick_export_format).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_else(|| "png".into());

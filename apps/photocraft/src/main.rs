@@ -72,7 +72,6 @@ mod startup_report;
 // Tablet support (macOS AppKit monitor, Linux X11/Wayland, Windows barrel button).
 mod tablet;
 mod ui_state;
-mod updates;
 mod window_frame;
 
 use photocraft_engine::Session;
@@ -83,7 +82,7 @@ use photocraft_ui_egui::os_window::APP_ID;
 /// Windows and Linux can use the app's title bar, with its own caption buttons and edge resizing
 /// (`photocraft_ui_egui::titlebar`); the preference below selects the mode. macOS always keeps its
 /// system traffic lights over the integrated title strip.
-const CUSTOM_TITLEBAR: bool = !cfg!(target_os = "macos");
+const CUSTOM_TITLEBAR: bool = false;
 
 /// Whether this start draws its own title bar: Windows and Linux do, unless Preferences ›
 /// Interface › System Title Bar asks for the system's (#1271, #1316). Read from the saved
@@ -151,14 +150,14 @@ fn native_options(custom_titlebar: bool) -> eframe::NativeOptions {
     eframe::NativeOptions {
         viewport: viewport
             .with_app_id(APP_ID)
-            .with_title("PhotoCraft")
+            .with_title(photocraft_ui_egui::app_name::app_name())
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([760.0, 480.0])
             .with_drag_and_drop(true)
             .with_decorations(!custom_titlebar)
-            .with_fullsize_content_view(true)
-            .with_titlebar_shown(false)
-            .with_title_shown(false),
+            .with_fullsize_content_view(false)
+            .with_titlebar_shown(true)
+            .with_title_shown(true),
         centered: true,
         // PhotoCraft owns its fallback fonts (`cjk_fonts`, craft-fonts): eframe's system-font
         // provider would compete with it and make glyph choice machine-dependent (#8512).
@@ -346,14 +345,6 @@ fn main() -> eframe::Result {
     // Then, so the panic hook and every start-up warning are recorded (`logging`).
     let logger = logging::install();
     crash_guard::install_hook();
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Some(done) = craft_update::self_update::finish(&photocraft_ui_egui::UPDATE_APP, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
-        if let Err(e) = done {
-            eprintln!("PhotoCraft update helper failed: {e}");
-            std::process::exit(1);
-        }
-        return Ok(());
-    }
 
     // The system font scan can take seconds (minutes on some Macs): run it off the UI thread.
     photocraft_ui_egui::type_tool::warm_fonts();
@@ -525,13 +516,14 @@ fn main() -> eframe::Result {
             PhotocraftApp::install_type_reset_hooks(&cc.egui_ctx);
             let mut app = PhotocraftApp::new(session, services);
             app.min_frame_ms = uncapped.then_some(1000.0 / 240.0);
-            app.integrated_titlebar = cfg!(target_os = "macos");
+            app.integrated_titlebar = false;
             app.custom_titlebar = custom_titlebar;
             // Only the title bar's free gap drags the window, never the menus (mac_window.rs).
             #[cfg(target_os = "macos")]
             mac_window::disable_native_title_drag();
             // Long commands and file opens run as background jobs with progress and Cancel (#210).
             app.background_jobs = std::env::var_os("PHOTOCRAFT_INLINE_JOBS").is_none();
+            photocraft_ui_egui::simple_mode::enable(&mut app);
             // Displays and their profiles (#569): wait briefly so the first frames already use
             // the right profile; a slower reading is applied when it arrives, and the shell reads
             // again when the displays may have changed.

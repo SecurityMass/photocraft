@@ -274,7 +274,9 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
         advance(app, ctx);
         return;
     };
-    let (title, message) = if reverts {
+    let (title, message) = if app.simple_mode {
+        (tl!("Unsaved changes"), crate::i18n::fmt(tl!("The drawing on “{name}” has not been exported and will be lost."), &[("name", &name)]))
+    } else if reverts {
         ("Revert", crate::i18n::fmt(tl!("Revert “{name}” to the last saved version? Your changes will be lost."), &[("name", &name)]))
     } else {
         let template = if exits {
@@ -297,7 +299,9 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
     // Yes/No already show Y/N. Cancel gets C on every platform (#4582). macOS still hides the
     // letters and keeps the shortcut.
     let cancel = (ButtonRole::Cancel, "Cancel", Some(Key::C), 84.0, Answer::Cancel);
-    let buttons = if reverts {
+    let buttons = if app.simple_mode {
+        vec![(ButtonRole::Default, "Quit Without Exporting", None, 170.0, Answer::Discard), cancel]
+    } else if reverts {
         vec![(ButtonRole::Default, "Revert", Some(Key::R), 84.0, Answer::Discard), cancel]
     } else if mac {
         vec![

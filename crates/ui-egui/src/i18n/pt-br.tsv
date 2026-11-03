@@ -4444,3 +4444,16 @@ smartSvg	AI/PDF/EPS contents will be edited as SVG. Saving replaces the embedded
 	Stop Color	Cor da parada
 	Shapes can't use patterns yet	Formas ainda não podem usar padrões
 	Edit Brush…	Editar pincel…
+	Open Image…	Abrir imagem…
+	Move View	Mover vista
+	Export PNG…	Exportar PNG…
+	Or drop an image here.	Ou solte uma imagem aqui.
+	Discard Drawing	Descartar desenho
+	Keep Drawing	Manter desenho
+	PNG exported.	PNG exportado.
+	Drawing	Desenho
+	Quit Without Exporting	Sair sem exportar
+	The drawing on “{name}” has not been exported. Opening the new image discards it.	O desenho em “{name}” ainda não foi exportado. Abrir a nova imagem vai descartá-lo.
+	The drawing on “{name}” has not been exported and will be lost.	O desenho em “{name}” ainda não foi exportado e será perdido.
+	Couldn't open {name}. The file may be damaged, or not a PNG, JPEG, WebP, BMP, GIF, TIFF or HEIC image.	Não foi possível abrir {name}. O arquivo pode estar danificado ou não ser uma imagem PNG, JPEG, WebP, BMP, GIF, TIFF ou HEIC.
+	Couldn't save the PNG. Check that the folder can be written to, then try again.	Não foi possível salvar o PNG. Verifique se a pasta permite gravação e tente novamente.

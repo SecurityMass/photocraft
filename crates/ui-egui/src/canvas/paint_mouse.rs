@@ -114,6 +114,16 @@ pub fn right_erases(app: &PhotocraftApp, tool: Tool) -> bool {
 /// brush with Alt held (#297), erases (Erase preference) or opens the Brush Preset picker. Arms
 /// `secondary_erase` or `brush_resize_armed` for this frame's `Down`.
 pub fn canvas_buttons(app: &mut PhotocraftApp, response: &Response, tool: Tool) -> Buttons {
+    // The right button opens hidden pickers and menus.
+    if app.simple_mode {
+        app.secondary_erase = false;
+        return Buttons {
+            started: response.drag_started_by(PointerButton::Primary),
+            dragged: response.dragged_by(PointerButton::Primary),
+            stopped: response.drag_stopped_by(PointerButton::Primary),
+            clicked: response.clicked(),
+        };
+    }
     if crate::brush_mode_menu::blocks_canvas(app, &response.ctx) {
         app.secondary_erase = false;
         return Buttons::default();

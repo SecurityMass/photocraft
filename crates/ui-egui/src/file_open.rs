@@ -208,6 +208,10 @@ impl PhotocraftApp {
 
     /// Show "Couldn't open <name>: <error>" as an error (status bar + notice).
     pub fn open_failed(&mut self, name: &str, err: &str) {
+        if self.simple_mode {
+            crate::simple_mode::open_failed(self, name, err);
+            return;
+        }
         self.failed({
             let template = "Couldn't open {name}: {error}";
             crate::i18n::fmt(tl!(template), &[("name", name), ("error", err)])
@@ -224,7 +228,8 @@ impl PhotocraftApp {
     /// Preset files (brushes, gradients) always go to their libraries. Native drops carry an
     /// absolute path, read in bounded reads (#375) rather than egui's whole-file read.
     pub fn open_dropped(&mut self, ctx: &egui::Context, files: Vec<egui::DroppedFileHandle>, at: Option<egui::Pos2>) {
-        let target = self.drop_target(ctx, at);
+        // Every dropped image opens: placing it on the canvas would be a hidden layer.
+        let target = if self.simple_mode { DropTarget::Elsewhere } else { self.drop_target(ctx, at) };
         let mut slot = match target {
             DropTarget::Tabs(slot) => Some(slot),
             DropTarget::Canvas | DropTarget::Elsewhere => None,

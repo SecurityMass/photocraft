@@ -182,8 +182,8 @@ fn open_filters_keep_literal_extensions_on_windows_and_macos() {
 }
 
 #[test]
-fn native_services_provide_update_transport() {
-    assert!(native(None).check_updates.is_some());
+fn native_services_never_check_for_updates() {
+    assert!(native(None).check_updates.is_none());
 }
 
 #[test]

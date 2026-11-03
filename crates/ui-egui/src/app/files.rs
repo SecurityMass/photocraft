@@ -58,6 +58,9 @@ impl PhotocraftApp {
     /// [`Self::open_bytes`] for a file read from `path` (File › Save writes back there; it goes
     /// to Open Recent), when known.
     pub(crate) fn open_bytes_from(&mut self, name: &str, bytes: &[u8], path: Option<&str>) -> Result<Vec<String>, String> {
+        if self.simple_mode && !crate::simple_mode::openable(name) {
+            return Err(format!("{name}: not an image type this app opens"));
+        }
         if let Some(r) = preset_files_ui::open(self, name, bytes) {
             return r.map(|()| Vec::new());
         }

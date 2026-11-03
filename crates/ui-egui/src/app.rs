@@ -198,6 +198,8 @@ impl PhotocraftApp {
             stylus: Default::default(),
             control_click: Default::default(),
             background_jobs: false,
+            simple_mode: false,
+            simple: Default::default(),
             min_frame_ms: None,
             last_frame_start_ms: 0.0,
             jobs: Default::default(),
@@ -255,6 +257,7 @@ impl eframe::App for PhotocraftApp {
         if cfg!(any(target_os = "windows", target_os = "linux")) && self.session.prefs().enhanced_controls.zoom_with_trackpad_pinch {
             wheel_nav::fold_legacy_pinch(ctx, raw_input);
         }
+        crate::simple_mode::filter_input(self, ctx, raw_input);
         self.inject_synthetic(ctx, raw_input);
         // After the control channel's own events (`ui.type`) join the OS's, before any widget.
         widgets::cap_text_events(&mut raw_input.events);

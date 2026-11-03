@@ -78,6 +78,7 @@ pub mod export_preset_cmds;
 pub mod exr_cmds;
 pub mod extra_cmds;
 pub mod face_cmds;
+pub mod shape_fix_cmds;
 pub mod file_cmds;
 pub mod fill_cmds;
 pub mod fill_key_cmds;
@@ -1344,6 +1345,7 @@ fn build() -> Vec<CommandSpec> {
     v.extend(crate::fill_key_cmds::specs());
     v.extend(crate::sample_cmds::specs());
     v.extend(crate::face_cmds::specs());
+    v.extend(crate::shape_fix_cmds::specs());
     v.extend(crate::sampler_cmds::specs());
     v.extend(crate::brush_key_cmds::specs());
     v.extend(crate::stamp_cmds::specs());

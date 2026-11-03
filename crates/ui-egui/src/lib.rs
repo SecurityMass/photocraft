@@ -25,6 +25,7 @@ macro_rules! tl {
     };
 }
 mod brush_mode_menu;
+pub mod app_name;
 pub mod canvas;
 pub mod control;
 pub mod dialogs;
@@ -45,6 +46,7 @@ pub mod monitor_status;
 pub mod notices;
 pub mod os_window;
 pub mod panels;
+pub mod simple_mode;
 pub mod preset_files_ui;
 pub mod proxy;
 pub mod render_path;
@@ -700,6 +702,9 @@ pub struct PhotocraftApp {
     /// `jobs_ui`). The desktop app turns it on; off (the default), everything runs inline as
     /// before, which tests and scripts rely on.
     pub background_jobs: bool,
+    /// The drawing app's interface (`simple_mode`) instead of the whole editor's.
+    pub simple_mode: bool,
+    pub simple: simple_mode::SimpleState,
     /// Shortest time between frames (ms), or `None` for no cap. A present mode that doesn't wait
     /// for the display (Low-Latency Drawing) would otherwise redraw as fast as it can while
     /// anything keeps requesting repaints (a drag hovering, autoscroll, Liquify held still).
