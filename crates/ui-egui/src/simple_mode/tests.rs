@@ -347,6 +347,15 @@ fn a_new_image_replaces_a_clean_one_and_asks_about_a_drawing() {
 }
 
 #[test]
+fn no_offer_to_import_another_editor_shortcuts() {
+    let mut services = services();
+    services.photoshop_shortcuts = Some(Box::new(|| None));
+    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+    enable(&mut app);
+    assert!(app.services.photoshop_shortcuts.is_none());
+}
+
+#[test]
 fn no_update_check_starts() {
     let mut app = app();
     assert!(app.session.updates.check.is_none());

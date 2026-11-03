@@ -44,6 +44,8 @@ pub fn enable(app: &mut PhotocraftApp) {
     // No questions about colour profiles: an image keeps the one it came with.
     app.session.color.settings.ask_on_mismatch = false;
     app.session.color.settings.ask_on_missing = false;
+    // With Photoshop on the Mac, the first launch would offer to import its keyboard shortcuts.
+    app.services.photoshop_shortcuts = None;
     app.ui.tool = Tool::Brush;
     let current = app.session.tools.brush.clone();
     // A pen: hard, solid, thicker with pressure. Only a size chosen in the last run carries over.
