@@ -327,8 +327,7 @@ fn handle_eyedropper_event(app: &mut PhotocraftApp, tool: Tool, ev: ToolEvent, m
 
 /// Tool state machine. Shared by mouse input and automation.
 pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) {
-    // Modifiers reach hidden tools from the pen (⌘ moves a layer, ⌥ picks a colour).
-    let mods = if app.simple_mode { egui::Modifiers::NONE } else { mods };
+    let mods = crate::simple_mode::pointer_mods(app, mods);
     if consumes_cancelled_vector_event(app, ev) {
         return;
     }

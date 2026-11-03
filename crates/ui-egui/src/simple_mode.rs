@@ -108,6 +108,12 @@ pub fn filter_input(app: &PhotocraftApp, ctx: &egui::Context, raw: &mut egui::Ra
     });
 }
 
+/// The modifiers a pointer event reaches the tools with: none here, as they lead to hidden tools
+/// (⌘ moves a layer, ⌥ picks a colour).
+pub fn pointer_mods(app: &PhotocraftApp, mods: Modifiers) -> Modifiers {
+    if app.simple_mode { Modifiers::NONE } else { mods }
+}
+
 /// The older document to close, when a new one has arrived and that one has a drawing not yet
 /// exported, so closing it needs an answer.
 fn replacing(app: &PhotocraftApp) -> Option<usize> {
